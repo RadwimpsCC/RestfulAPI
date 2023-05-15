@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
-
+using AutoMapper;
 namespace FakeXiecheng.API
 {
     public class Startup
@@ -26,13 +26,15 @@ namespace FakeXiecheng.API
         public void ConfigureServices(IServiceCollection services)
         {
             //注入MVC的服务依赖 
-            services.AddControllers();
+            services.AddControllers(setupAction => { setupAction.ReturnHttpNotAcceptable = true; }).AddXmlDataContractSerializerFormatters();  //请求的数据可以为XML，发送请求不带accept的情况下，默认给json
             //services.AddTransient<ITouristRouteRepository, MockTouristRouteRepository>(); //注册路线仓库的依赖注入
             services.AddTransient<ITouristRouteRepository, TouristRouteRepository>(); //注册路线仓库的依赖注入
             services.AddDbContext<AppDbContext>(option => {
                 //option.UseSqlServer("Data Source=LocalHost;User ID=sa;Password=123456;Connect Timeout=30;Encrypt=False;Trust Server Certificate=False;Application Intent=ReadWrite;Multi Subnet Failover=False"); 
                 option.UseSqlServer(Configuration["DbContext:ConnectionString"]);
             });
+            //扫描Profile文件
+            services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
         }
 
