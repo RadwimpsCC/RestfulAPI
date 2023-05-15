@@ -8,6 +8,7 @@ using System.Collections;
 using FakeXiecheng.API.Dtos;
 using System.Collections.Generic;
 using FakeXiecheng.API.Models;
+using FakeXiecheng.API.Helper;
 
 namespace FakeXiecheng.API.Controllers
 {
