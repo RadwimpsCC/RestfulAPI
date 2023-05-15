@@ -12,6 +12,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json.Serialization;
+
 namespace FakeXiecheng.API
 {
     public class Startup
@@ -26,7 +29,30 @@ namespace FakeXiecheng.API
         public void ConfigureServices(IServiceCollection services)
         {
             //注入MVC的服务依赖 
-            services.AddControllers(setupAction => { setupAction.ReturnHttpNotAcceptable = true; }).AddXmlDataContractSerializerFormatters();  //请求的数据可以为XML，发送请求不带accept的情况下，默认给json
+            services.AddControllers(setupAction => { setupAction.ReturnHttpNotAcceptable = true; })
+                .AddNewtonsoftJson(setupAction => {
+                    setupAction.SerializerSettings.ContractResolver =
+                        new CamelCasePropertyNamesContractResolver();
+                })
+                .AddXmlDataContractSerializerFormatters().ConfigureApiBehaviorOptions(setupAction =>
+            {
+                setupAction.InvalidModelStateResponseFactory = context =>
+                {
+                    var problemDetail = new ValidationProblemDetails(context.ModelState)
+                    {
+                        Type = "无所谓",
+                        Title = "数据验证失败",
+                        Status = StatusCodes.Status422UnprocessableEntity,
+                        Detail = "请看详细说明",
+                        Instance = context.HttpContext.Request.Path
+                    };
+                    problemDetail.Extensions.Add("traceId", context.HttpContext.TraceIdentifier);
+                    return new UnprocessableEntityObjectResult(problemDetail)
+                    {
+                        ContentTypes = { "application/problem+json" }
+                    };
+                };
+            }); ;  //请求的数据可以为XML，发送请求不带accept的情况下，默认给json
             //services.AddTransient<ITouristRouteRepository, MockTouristRouteRepository>(); //注册路线仓库的依赖注入
             services.AddTransient<ITouristRouteRepository, TouristRouteRepository>(); //注册路线仓库的依赖注入
             services.AddDbContext<AppDbContext>(option => {

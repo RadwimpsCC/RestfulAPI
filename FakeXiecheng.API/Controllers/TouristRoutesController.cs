@@ -1,29 +1,31 @@
-﻿using FakeXiecheng.API.Dtos;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using FakeXiecheng.API.Dtos;
 using FakeXiecheng.API.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Linq;
 using AutoMapper;
-using System.Collections;
-using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using FakeXiecheng.API.ResourceParameters;
+using FakeXiecheng.API.Models;
+using Microsoft.AspNetCore.JsonPatch;
 
 namespace FakeXiecheng.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/[controller]")] // api/touristroute
     [ApiController]
     public class TouristRoutesController : ControllerBase
     {
-        private readonly IMapper _mapper;   
-        //创建私有变量
-        private ITouristRouteRepository _touristRouteRepository { get; set; }
+        private ITouristRouteRepository _touristRouteRepository;
+        private readonly IMapper _mapper;
 
-        //创建构建函数
-        public TouristRoutesController(ITouristRouteRepository touristRouteRepository,IMapper mapper)
+        public TouristRoutesController(
+            ITouristRouteRepository touristRouteRepository,
+            IMapper mapper
+        )
         {
-            //给私有仓库赋值
             _touristRouteRepository = touristRouteRepository;
             _mapper = mapper;
         }
@@ -32,10 +34,10 @@ namespace FakeXiecheng.API.Controllers
         [HttpGet]
         [HttpHead]
         public IActionResult GerTouristRoutes(
-              [FromQuery] TouristRouteResourceParamaters paramaters
-          //[FromQuery] string keyword,
-          //string rating // 小于lessThan, 大于largerThan, 等于equalTo lessThan3, largerThan2, equalTo5 
-          )// FromQuery vs FromBody
+            [FromQuery] TouristRouteResourceParamaters paramaters
+        //[FromQuery] string keyword,
+        //string rating // 小于lessThan, 大于largerThan, 等于equalTo lessThan3, largerThan2, equalTo5 
+        )// FromQuery vs FromBody
         {
             var touristRoutesFromRepo = _touristRouteRepository.GetTouristRoutes(paramaters.Keyword, paramaters.RatingOperator, paramaters.RatingValue);
             if (touristRoutesFromRepo == null || touristRoutesFromRepo.Count() <= 0)
@@ -46,9 +48,8 @@ namespace FakeXiecheng.API.Controllers
             return Ok(touristRoutesDto);
         }
 
-
-        [HttpGet("{touristRouteId}")]
-        [HttpHead]
+        // api/touristroutes/{touristRouteId}
+        [HttpGet("{touristRouteId}", Name = "GetTouristRouteById")]
         public IActionResult GetTouristRouteById(Guid touristRouteId)
         {
             var touristRouteFromRepo = _touristRouteRepository.GetTouristRoute(touristRouteId);
@@ -75,5 +76,58 @@ namespace FakeXiecheng.API.Controllers
             var touristRouteDto = _mapper.Map<TouristRouteDto>(touristRouteFromRepo);
             return Ok(touristRouteDto);
         }
+
+        [HttpPost]
+        public IActionResult CreateTouristRoute([FromBody] TouristRouteForCreationDto touristRouteForCreationDto)
+        {
+            var touristRouteModel = _mapper.Map<TouristRoute>(touristRouteForCreationDto);
+            _touristRouteRepository.AddTouristRoute(touristRouteModel);
+            _touristRouteRepository.Save();
+            var touristRouteToReture = _mapper.Map<TouristRouteDto>(touristRouteModel);
+            return CreatedAtRoute(
+                "GetTouristRouteById",
+                new { touristRouteId = touristRouteToReture.Id },
+                touristRouteToReture
+            );
+        }
+
+        [HttpPatch("{touristRouteId}")]
+        public IActionResult PartiallyUpdateTouristRoute(
+        [FromRoute] Guid touristRouteId,
+        [FromBody] JsonPatchDocument<TouristRouteForUpdateDto> patchDocument
+    )
+        {
+            if (!_touristRouteRepository.TouristRouteExists(touristRouteId))
+            {
+                return NotFound("旅游路线找不到");
+            }
+
+            var touristRouteFromRepo = _touristRouteRepository.GetTouristRoute(touristRouteId);
+            var touristRouteToPatch = _mapper.Map<TouristRouteForUpdateDto>(touristRouteFromRepo);
+            patchDocument.ApplyTo(touristRouteToPatch, ModelState);
+            if (!TryValidateModel(touristRouteToPatch))
+            {
+                return ValidationProblem(ModelState);
+            }
+            _mapper.Map(touristRouteToPatch, touristRouteFromRepo);
+            _touristRouteRepository.Save();
+
+            return NoContent();
+        }
+        [HttpDelete("{touristRouteId}")]
+        public IActionResult DeleteTouristRoute([FromRoute] Guid touristRouteId)
+        {
+            if (!_touristRouteRepository.TouristRouteExists(touristRouteId))
+            {
+                return NotFound("旅游路线找不到");
+            }
+
+            var touristRoute = _touristRouteRepository.GetTouristRoute(touristRouteId);
+            _touristRouteRepository.DeleteTouristRoute(touristRoute);
+            _touristRouteRepository.Save();
+
+            return NoContent();
+        }
+
     }
 }
