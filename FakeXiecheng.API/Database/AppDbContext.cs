@@ -6,10 +6,12 @@ using System.Reflection;
 using Newtonsoft.Json;
 using System.Collections;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 
 namespace FakeXiecheng.API.Database
 {
-    public class AppDbContext:DbContext
+    public class AppDbContext: IdentityDbContext<IdentityUser>//DbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options)
             :base(options)
